@@ -47,7 +47,7 @@ export function Navbar() {
     <nav className="navbar bg-white shadow-md py-4 px-6">
       <div className="container mx-auto flex justify-between">
         <Link className="flex-grow text-center hover:text-blue-600" to="/">Home</Link>
-        <Link className="flex-grow text-center hover:text-blue-600" to="/explore">Explore</Link>
+        <Link className="flex-grow text-center hover:text-blue-600" to="/ProblemSet">Explore</Link>
         <Link className="flex-grow text-center hover:text-blue-600" to="/find">Find</Link>
         <Link className="flex-grow text-center hover:text-blue-600" to="/connect">Connect</Link>
         <Link className="flex-grow text-center hover:text-blue-600" to="/logout">Logout</Link>
