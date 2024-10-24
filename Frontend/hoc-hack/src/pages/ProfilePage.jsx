@@ -1,9 +1,8 @@
-import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaGithub, FaLinkedin } from 'react-icons/fa';
 import axios from 'axios';
-
+import io from 'socket.io-client';
 
 const staticProfiles = [
   { 
@@ -41,36 +40,53 @@ const staticProfiles = [
   },
 ];
 
-// Navbar component
-export function Navbar() {
-  return (
-    <nav className="navbar bg-white shadow-md py-4 px-6">
-      <div className="container mx-auto justify-center flex">
-        <Link className="text-lg font-bold" to="/">Navbar</Link>
-        <div className="ml-auto space-x-6">
-          <Link className="hover:text-blue-600" to="/">Home</Link>
-          <Link className="hover:text-blue-600" to="/profiles">Profiles</Link>
-        </div>
-      </div>
-    </nav>
-  );
-};
-
-// ProfilePage component with profile fetching
-export default function ProfilePage (){
+export default function ProfilePage() {
   const [profiles, setProfiles] = useState(staticProfiles);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [dragging, setDragging] = useState(false);
-  const [preference, setPreference] = useState(''); // Preference state to store user input
+  const [preference, setPreference] = useState('');
+  const [socket, setSocket] = useState(null);
+  const [chatRequests, setChatRequests] = useState([]); // Store chat requests
+  const [currentUserId, setCurrentUserId] = useState(null); // User Login ID
 
-  // Fetch profiles with preference
+  // Login form states
+  const [username, setUsername] = useState('');
+  const [loggedIn, setLoggedIn] = useState(false);
+
+  // Establish WebSocket connection
+  useEffect(() => {
+    if (loggedIn) {
+      const socketIo = io('http://localhost:3000', {
+        reconnectionAttempts: 5,
+        reconnectionDelay: 2000,
+      });
+      setSocket(socketIo);
+  
+      // Listen for incoming chat requests
+      socketIo.on('chat-request', (data) => {
+        console.log('Received chat request:', data); // Log incoming requests
+        setChatRequests((prev) => [...prev, data]);
+      });
+  
+      socketIo.on('connect_error', (error) => {
+        console.error('WebSocket connection error:', error);
+      });
+  
+      // Cleanup when component unmounts
+      return () => {
+        socketIo.disconnect();
+      };
+    }
+  }, [loggedIn]);
+  
+
   const fetchProfiles = async (pref) => {
     try {
-      const response = await axios.post('http://localhost:3000/findmatch', { pref: pref });
-      const fetchedProfiles = response.data;
-      setProfiles([...fetchedProfiles]);
+      const response = await axios.post('http://localhost:3000/findmatch', { pref });
+      setProfiles(response.data);
     } catch (error) {
       console.error('Error fetching profiles:', error);
+      alert('Failed to fetch profiles. Please try again.');
     }
   };
 
@@ -83,79 +99,141 @@ export default function ProfilePage (){
   };
 
   const handleDragEnd = (event, info) => {
-    if (info.offset.x > 100) handleSwipe('right');
-    else if (info.offset.x < -100) handleSwipe('left');
+    const dragThreshold = 120; // Adjust sensitivity
+    if (info.offset.x > dragThreshold) handleSwipe('right');
+    else if (info.offset.x < -dragThreshold) handleSwipe('left');
     setDragging(false);
   };
 
-  // Fetch profiles when preference button is clicked
-  const handlePreferenceSubmit = () => {
-    fetchProfiles(preference);
+  const handleLike = (likedUserId) => {
+    if (socket) {
+      // Send a chat request to the liked user via WebSocket
+      socket.emit('like', { likerId: currentUserId, likedUserId });
+      alert('You liked this user!');
+    }
+  };
+
+  const handleAcceptChat = (likerId) => {
+    if (socket) {
+      // Accept the chat request and notify the liker
+      socket.emit('accept-chat', { accepterId: currentUserId, likerId });
+      setChatRequests(chatRequests.filter((req) => req.likerId !== likerId)); // Remove request after accepting
+      alert('You accepted the chat request!');
+    }
+  };
+
+  const handleLogin = () => {
+    // Simulate a login by setting the current user
+    if (username === 'Alice') setCurrentUserId('1');
+    if (username === 'Bob') setCurrentUserId('2');
+    setLoggedIn(true);
   };
 
   return (
     <div className="container mx-auto p-8">
-      {/* Input for user preference */}
-      <div className="mb-4">
-        <input
-          type="text"
-          value={preference}
-          onChange={(e) => setPreference(e.target.value)}
-          placeholder="Enter your preference (e.g., JavaScript, Python)"
-          className="border p-2 mr-2"
-        />
-        {/* Button to submit preference */}
-        <button
-          onClick={handlePreferenceSubmit}
-          className="bg-blue-500 text-white px-4 py-2 rounded"
-        >
-          Find Matches
-        </button>
-      </div>
-
-      <AnimatePresence>
-        {profiles.slice(currentIndex, currentIndex + 1).map((profile) => (
-          <motion.div
-            key={profile.id}
-            className={`card ${dragging ? 'dragging' : ''} bg-white shadow-lg rounded-md p-6 relative`}
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.5 }}
-            drag="x"
-            dragConstraints={{ left: 0, right: 0 }}
-            dragElastic={1}
-            onDragStart={() => setDragging(true)}
-            onDragEnd={handleDragEnd}
+      {/* Login form */}
+      {!loggedIn ? (
+        <div className="login-form mb-4">
+          <input
+            type="text"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder="Enter username (Alice or Bob)"
+            className="border p-2 mr-2"
+          />
+          <button
+            onClick={handleLogin}
+            className="bg-blue-500 text-white px-4 py-2 rounded"
           >
-            <div className="profile-container flex">
-              <img src={profile.img} alt={profile.name} className="rounded-full w-32 h-32 mr-4" />
-              <div className="details text-left">
-                <h2 className="text-2xl font-bold mb-2">{profile.name}</h2>
-                <p><strong>Skills:</strong> {profile.skills.join(', ')}</p>
-                <p><strong>Location:</strong> {profile.location}</p>
-                <p><strong>Experience:</strong> {profile.experience}</p>
-                <p><strong>Education:</strong> {profile.education}</p>
-                <div className="flex space-x-4 mt-4">
-                  <a href={profile.github} target="_blank" rel="noopener noreferrer" className="text-blue-500">
-                    <FaGithub size={30} />
-                  </a>
-                  <a href={profile.linkedin} target="_blank" rel="noopener noreferrer" className="text-blue-500">
-                    <FaLinkedin size={30} />
-                  </a>
+            Login
+          </button>
+        </div>
+      ) : (
+        <>
+          {/* Input for user preference */}
+          <div className="mb-4">
+            <input
+              type="text"
+              value={preference}
+              onChange={(e) => setPreference(e.target.value)}
+              placeholder="Enter your preference (e.g., JavaScript, Python)"
+              className="border p-2 mr-2"
+            />
+            <button
+              onClick={() => fetchProfiles(preference)}
+              className="bg-blue-500 text-white px-4 py-2 rounded"
+            >
+              Find Matches
+            </button>
+          </div>
+
+          <AnimatePresence>
+            {profiles.slice(currentIndex, currentIndex + 1).map((profile) => (
+              <motion.div
+                key={profile.id}
+                className={`card ${dragging ? 'dragging' : ''} bg-white shadow-lg rounded-md p-6 relative`}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.5 }}
+                drag="x"
+                dragConstraints={{ left: 0, right: 0 }}
+                dragElastic={1}
+                onDragStart={() => setDragging(true)}
+                onDragEnd={handleDragEnd}
+              >
+                <div className="profile-container flex">
+                  <img src={profile.image.uri} alt={profile.name} className="rounded-full w-32 h-32 mr-4" />
+                  <div className="details text-left">
+                    <h2 className="text-2xl font-bold mb-2">{profile.name}</h2>
+                    <p><strong>Skills:</strong> {profile.skills.join(', ')}</p>
+                    <p><strong>Location:</strong> {profile.location}</p>
+                    <p><strong>Experience:</strong> {profile.experience}</p>
+                    <p><strong>Education:</strong> {profile.education}</p>
+                    <div className="flex space-x-4 mt-4">
+                      <a href={profile.github} target="_blank" rel="noopener noreferrer" className="text-blue-500">
+                        <FaGithub size={30} />
+                      </a>
+                      <a href={profile.linkedin} target="_blank" rel="noopener noreferrer" className="text-blue-500">
+                        <FaLinkedin size={30} />
+                      </a>
+                    </div>
+                    <button
+                      onClick={() => handleLike(profile.id)}
+                      className="mt-4 bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded"
+                    >
+                      Like
+                    </button>
+                  </div>
                 </div>
-              </div>
-            </div>
-            <motion.div className="like text-green-500 text-2xl absolute top-4 right-4" style={{ opacity: dragging ? 1 : 0 }}>
-              LIKE
-            </motion.div>
-            <motion.div className="nope text-red-500 text-2xl absolute top-4 left-4" style={{ opacity: dragging ? 1 : 0 }}>
-              NOPE
-            </motion.div>
-          </motion.div>
-        ))}
-      </AnimatePresence>
-      <Link to="/" className="text-blue-500 underline mt-4 block">Go to Home Page</Link>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+
+          {/* Chat Requests */}
+          {chatRequests.length > 0 && (
+  <div className="chat-requests bg-gray-100 p-4 rounded-md mt-4">
+    <h3 className="text-xl font-bold mb-4">Chat Requests</h3>
+    {chatRequests.map((req) => {
+      console.log('Displaying chat request:', req); // Log each request
+      return (
+        <div key={req.likerId} className="request-item mb-2">
+          <p>{req.likerName} wants to chat with you.</p>
+          <button
+            onClick={() => handleAcceptChat(req.likerId)}
+            className="bg-green-500 text-white px-4 py-2 rounded mr-2"
+          >
+            Accept
+          </button>
+          <button className="bg-red-500 text-white px-4 py-2 rounded">
+            Reject
+          </button>
+        </div>
+      );
+    })}
+  </div>
+)}
+        </>
+      )}
     </div>
   );
-};
-
+}

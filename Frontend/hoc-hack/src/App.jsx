@@ -4,11 +4,11 @@ import viteLogo from '/vite.svg'
 import './App.css'
 import {Routes,BrowserRouter,Route} from 'react-router-dom'
 import Homepage from './pages/Homepage'
-import ProfilePage, { Navbar } from './pages/ProfilePage'
+import ProfilePage from './pages/ProfilePage'
 function App() {
   return (
     <BrowserRouter>
-      <Navbar/>
+      
       <Routes>
         <Route path='/home' element={<Homepage/>}/>
         <Route path='/match' element={<ProfilePage/>}/>
