@@ -9,6 +9,7 @@ const registerRouter = require("./routes/register");
 const filterRouter = require("./routes/filteredUser");
 const GithubStrategy = require("passport-github2").Strategy;
 const cors = require('cors')
+const dislikeRouter = require('./routes/dislikeUser');
 
 try{
     mongoose.connect('mongodb+srv://adnanali11875:helloworld@cluster0.caghz.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0').then(()=>{
@@ -33,6 +34,9 @@ app.use(cors())
 app.use('/',homeRouter);
 app.use('/',registerRouter);
 app.use('/',filterRouter);
+
+// Add this to your app middleware
+app.use('/', dislikeRouter);
 
 app.listen(3000, () => {
     console.log(`Server is running at port 3000`);

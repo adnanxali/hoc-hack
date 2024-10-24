@@ -14,6 +14,7 @@ const UserSchema = new Schema({
         contentType:String
     },
     bio:{type:String,required:true},
-    matched:[{type:Schema.Types.ObjectId,ref:'User'}]
+    matched:[{type:Schema.Types.ObjectId,ref:'User'}],
+    disliked: [{ type: Schema.Types.ObjectId, ref: 'User' }] 
 })
 module.exports= mongoose.model('User',UserSchema);
