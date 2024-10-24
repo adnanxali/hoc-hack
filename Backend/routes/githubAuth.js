@@ -43,7 +43,7 @@ passport.use(
   );
   
   homeRouter.get("/profile", (req, res) => {
-    res.send(`Hello ${req.user.username}`);
+    res.redirect(`http://localhost:5173/match`);
   });
   
   homeRouter.get("/logout", (req, res) => {

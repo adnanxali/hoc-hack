@@ -4,7 +4,8 @@ import viteLogo from '/vite.svg'
 import './App.css'
 import {Routes,BrowserRouter,Route} from 'react-router-dom'
 import Homepage from './pages/Homepage'
-import ProfilePage, { Navbar } from './pages/ProfilePage'
+import ProfilePage,{Navbar} from './pages/ProfilePage'
+
 function App() {
   return (
     <BrowserRouter>
